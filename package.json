@@ -1,0 +1,21 @@
+{
+  "name": "employee-api",
+  "version": "1.0.0",
+  "description": "Serverless Employee Management CRUD API for AWS Lambda (Node.js 22)",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "jest --runInBand",
+    "lint": "echo \"No linter configured\""
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.400.0",
+    "@aws-sdk/lib-dynamodb": "^3.400.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  }
+}
