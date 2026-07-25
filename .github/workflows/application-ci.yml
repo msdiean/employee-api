@@ -49,3 +49,54 @@ jobs:
           echo ""
           echo "========== Latest Commit =========="
           git log -1 --oneline
+
+  setup:
+    name: Stage 2 - Setup Build Environment
+    needs: checkout
+    runs-on: [self-hosted, Linux, X64, web]
+
+    steps:
+      # Check out the repository because each job runs in an isolated environment.
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Fail fast if the required Node.js manifest files are missing.
+      - name: Verify Required Manifest Files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Checking for required project files..."
+          test -f package.json || { echo "ERROR: package.json not found."; exit 1; }
+          test -f package-lock.json || { echo "ERROR: package-lock.json not found."; exit 1; }
+
+          echo "Required files are present:"
+          ls -l package.json package-lock.json
+
+      # Set up Node.js and enable npm cache for later pipeline stages.
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # Verify the required toolchain and environment on the self-hosted runner.
+      - name: Verify Build Environment
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "========== Runtime Versions =========="
+          echo "Node.js Version   : $(node --version)"
+          echo "npm Version       : $(npm --version)"
+          echo "Java Version      :"
+          java -version
+          echo ""
+          echo "AWS CLI Version   : $(aws --version)"
+          echo "Sonar Scanner Version:"
+          sonar-scanner --version
+
+          echo ""
+          echo "========== Environment =========="
+          echo "PATH=$PATH"
