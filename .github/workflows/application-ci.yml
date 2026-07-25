@@ -168,3 +168,23 @@ jobs:
         run: |
           set -euo pipefail
           npm test
+
+  gitleaks:
+    name: Stage 5 - Secret Scan (Gitleaks)
+    needs: unit-test
+    runs-on: [self-hosted, Linux, X64, web]
+    permissions:
+      contents: read
+
+    steps:
+      # Full history checkout improves secret detection across commits.
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Run Gitleaks and fail the job if secrets are detected.
+      - name: Run Gitleaks Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
