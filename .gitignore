@@ -1,7 +1,6 @@
 node_modules/
 coverage/
 .env
-package-lock.json
 # Node modules
 node_modules/
 
