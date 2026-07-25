@@ -6,6 +6,7 @@
   "scripts": {
     "build": "echo \"Build step completed (no transpilation required)\"",
     "test": "jest --runInBand",
+    "test:coverage": "jest --runInBand --coverage --coverageDirectory=coverage --coverageReporters=lcov --coverageReporters=text-summary",
     "lint": "echo \"No linter configured\""
   },
   "engines": {
