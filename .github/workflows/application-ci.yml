@@ -223,12 +223,19 @@ jobs:
           set -euo pipefail
           npm run test:coverage
 
-      # Confirm Sonar Scanner is present on the self-hosted runner before starting analysis.
+      # Install Sonar Scanner CLI for this job so the scan does not depend on runner preinstallation.
+      - name: Install Sonar Scanner CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save sonar-scanner
+
+      # Verify the scanner CLI is available before uploading analysis.
       - name: Verify Sonar Scanner Availability
         shell: bash
         run: |
           set -euo pipefail
-          sonar-scanner --version
+          npx sonar-scanner --version
 
       # Upload analysis to SonarQube using host URL from Variables and token from Secrets.
       - name: Run SonarQube Scan
@@ -241,7 +248,7 @@ jobs:
 
           PROJECT_KEY="${GITHUB_REPOSITORY//\//_}"
 
-          sonar-scanner \
+          npx sonar-scanner \
             -Dsonar.projectKey="$PROJECT_KEY" \
             -Dsonar.projectName="$GITHUB_REPOSITORY" \
             -Dsonar.projectVersion="$GITHUB_SHA" \
