@@ -4,6 +4,7 @@
   "description": "Serverless Employee Management CRUD API for AWS Lambda (Node.js 22)",
   "main": "src/index.js",
   "scripts": {
+    "build": "echo \"Build step completed (no transpilation required)\"",
     "test": "jest --runInBand",
     "lint": "echo \"No linter configured\""
   },
