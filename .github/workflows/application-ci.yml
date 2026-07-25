@@ -259,3 +259,63 @@ jobs:
             -Dsonar.sourceEncoding=UTF-8 \
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.token="$SONAR_TOKEN"
+
+      # Persist scanner metadata so the next job can evaluate the Quality Gate.
+      - name: Upload Sonar Scan Metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonar-scan-metadata
+          path: .scannerwork/report-task.txt
+          if-no-files-found: error
+
+  sonarqube-quality-gate:
+    name: Stage 7 - SonarQube Quality Gate
+    needs: sonarqube
+    runs-on: [self-hosted, Linux, X64, web]
+    permissions:
+      contents: read
+
+    steps:
+      # Download scan metadata generated in the previous SonarQube analysis job.
+      - name: Download Sonar Scan Metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: sonar-scan-metadata
+          path: .scannerwork
+
+      # Wait for SonarQube background processing and evaluate the official Quality Gate result.
+      - name: Evaluate SonarQube Quality Gate
+        id: quality-gate
+        uses: SonarSource/sonarqube-quality-gate-action@master
+        timeout-minutes: 10
+        with:
+          pollingTimeoutSec: 600
+          scanMetadataReportFile: .scannerwork/report-task.txt
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      # Always print the final gate status for visibility in workflow logs.
+      - name: Display Quality Gate Status
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SonarQube Quality Gate Status: ${{ steps.quality-gate.outputs.quality-gate-status }}"
+
+      # Fail immediately with an explicit error when the Quality Gate is not passed.
+      - name: Fail on Quality Gate Failure
+        if: steps.quality-gate.outputs.quality-gate-status != 'PASSED'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "::error::SonarQube Quality Gate FAILED. Failing pipeline."
+          exit 1
+
+      # Confirm successful gate evaluation when status is PASSED.
+      - name: Confirm Quality Gate Passed
+        if: steps.quality-gate.outputs.quality-gate-status == 'PASSED'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SonarQube Quality Gate PASSED."
