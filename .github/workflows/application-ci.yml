@@ -94,9 +94,6 @@ jobs:
           java -version
           echo ""
           echo "AWS CLI Version   : $(aws --version)"
-          echo "Sonar Scanner Version:"
-          sonar-scanner --version
-
           echo ""
           echo "========== Environment =========="
           echo "PATH=$PATH"
