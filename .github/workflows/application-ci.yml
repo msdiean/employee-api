@@ -11,30 +11,41 @@ on:
 
 jobs:
   checkout:
-    name: Checkout Stage
-    runs-on:
-      - self-hosted
-      - Linux
-      - X64
-      - web
+    name: Stage 1 - Checkout Source Code
+    runs-on: [self-hosted, Linux, X64, web]
 
     steps:
-      # Check out the repository so subsequent steps can access the codebase.
-      - name: Checkout repository
+      # Checkout the repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Print core execution context for traceability and runner verification.
-      - name: Print checkout context
-        shell: bash
+      # Verify runner and repository information
+      - name: Verify Runner
         run: |
-          echo "Current working directory: $(pwd)"
-          echo "Repository name: ${{ github.event.repository.name }}"
-          echo "Current branch: ${{ github.ref_name }}"
-          echo "Git commit SHA: ${{ github.sha }}"
-          echo "Runner hostname: $(hostname)"
+          echo "========== Runner Details =========="
+          echo "Runner Name      : $RUNNER_NAME"
+          echo "Runner OS        : $RUNNER_OS"
+          echo "Runner Arch      : $RUNNER_ARCH"
+          echo "Hostname         : $(hostname)"
 
-      # List all repository files to confirm checkout contents on the runner.
-      - name: List repository files
-        shell: bash
+          echo ""
+          echo "========== GitHub Details =========="
+          echo "Repository       : ${{ github.repository }}"
+          echo "Branch           : ${{ github.ref_name }}"
+          echo "Commit SHA       : ${{ github.sha }}"
+          echo "Workspace        : $GITHUB_WORKSPACE"
+
+      # Verify repository contents
+      - name: Verify Source Code
         run: |
-          ls -laR
+          echo "========== Repository Contents =========="
+          pwd
+          ls -lah
+
+          echo ""
+          echo "========== Git Status =========="
+          git status
+
+          echo ""
+          echo "========== Latest Commit =========="
+          git log -1 --oneline
