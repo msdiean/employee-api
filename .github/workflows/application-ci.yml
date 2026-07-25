@@ -1,0 +1,40 @@
+name: Application CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  checkout:
+    name: Checkout Stage
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - web
+
+    steps:
+      # Check out the repository so subsequent steps can access the codebase.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Print core execution context for traceability and runner verification.
+      - name: Print checkout context
+        shell: bash
+        run: |
+          echo "Current working directory: $(pwd)"
+          echo "Repository name: ${{ github.event.repository.name }}"
+          echo "Current branch: ${{ github.ref_name }}"
+          echo "Git commit SHA: ${{ github.sha }}"
+          echo "Runner hostname: $(hostname)"
+
+      # List all repository files to confirm checkout contents on the runner.
+      - name: List repository files
+        shell: bash
+        run: |
+          ls -laR
