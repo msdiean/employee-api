@@ -425,6 +425,17 @@ jobs:
             --publish
           echo "Lambda deployment successful!"
 
+      - name: Archive Application Package Artifact to S3
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          BUCKET_NAME="employee-api-central-audit-dev-${ACCOUNT_ID}"
+          if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+            echo "Archiving application zip to s3://${BUCKET_NAME}/build-artifacts/employee-api-${{ github.sha }}.zip..."
+            aws s3 cp employee-api.zip "s3://${BUCKET_NAME}/build-artifacts/employee-api-${{ github.sha }}.zip"
+          fi
+
       - name: Deploy Frontend to S3 Static Website
         shell: bash
         run: |
