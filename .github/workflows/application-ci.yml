@@ -398,6 +398,9 @@ jobs:
       contents: read
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Download Lambda Zip Artifact
         uses: actions/download-artifact@v4
         with:
@@ -420,5 +423,16 @@ jobs:
             --function-name employee-api-dev \
             --zip-file fileb://employee-api.zip \
             --publish
-          echo "Deployment successful!"
+          echo "Lambda deployment successful!"
+
+      - name: Deploy Frontend to S3 Static Website
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          BUCKET_NAME="employee-api-frontend-dev-${ACCOUNT_ID}"
+          echo "Syncing public/ Web UI to S3 bucket s3://${BUCKET_NAME}..."
+          aws s3 sync public/ s3://${BUCKET_NAME}/ --delete
+          echo "Frontend successfully deployed to S3 Website!"
+
 
