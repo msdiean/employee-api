@@ -13,7 +13,7 @@ async function createEmployee(event) {
   } catch (err) {
     console.error('createEmployee error', err);
     if (err && err.status === 400) return response.badRequest(err.message);
-    return response.serverError('Internal server error');
+    return response.serverError(err.message || 'Internal server error');
   }
 }
 
@@ -23,7 +23,7 @@ async function getEmployees() {
     return response.success(items);
   } catch (err) {
     console.error('getEmployees error', err);
-    return response.serverError('Internal server error');
+    return response.serverError(err.message || 'Internal server error');
   }
 }
 
@@ -36,7 +36,7 @@ async function getEmployee(event) {
     console.error('getEmployee error', err);
     if (err && err.status === 400) return response.badRequest(err.message);
     if (err && err.status === 404) return response.notFound(err.message);
-    return response.serverError('Internal server error');
+    return response.serverError(err.message || 'Internal server error');
   }
 }
 
@@ -50,7 +50,7 @@ async function updateEmployee(event) {
     console.error('updateEmployee error', err);
     if (err && err.status === 400) return response.badRequest(err.message);
     if (err && err.status === 404) return response.notFound(err.message);
-    return response.serverError('Internal server error');
+    return response.serverError(err.message || 'Internal server error');
   }
 }
 
@@ -63,7 +63,7 @@ async function deleteEmployee(event) {
     console.error('deleteEmployee error', err);
     if (err && err.status === 400) return response.badRequest(err.message);
     if (err && err.status === 404) return response.notFound(err.message);
-    return response.serverError('Internal server error');
+    return response.serverError(err.message || 'Internal server error');
   }
 }
 
