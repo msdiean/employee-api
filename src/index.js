@@ -12,6 +12,19 @@ exports.handler = async (event) => {
   const method = event.httpMethod;
   const path = event.path || '';
 
+  // Handle CORS OPTIONS preflight request
+  if (method === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+        'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PUT,DELETE',
+      },
+      body: JSON.stringify({ message: 'CORS Preflight OK' }),
+    };
+  }
+
   // POST /employees
   if (method === 'POST' && path === '/employees') {
     return handler.createEmployee(event);
@@ -36,22 +49,12 @@ exports.handler = async (event) => {
 
   return {
     statusCode: 404,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+      'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PUT,DELETE',
+    },
     body: JSON.stringify({ message: 'Not Found' }),
   };
-};
-exports.handler = async (event) => {
-
-    return {
-        statusCode: 200,
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            message: "Welcome to Employee Management API",
-            method: event.httpMethod,
-            path: event.path
-        })
-    };
-
 };

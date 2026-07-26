@@ -1,9 +1,18 @@
 /**
  * Business logic for Employee
  */
+const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const Employee = require('../models/employee');
 const repository = require('../repositories/employeeRepository');
+
+/**
+ * Hash password securely using Node.js crypto
+ */
+function hashPassword(password) {
+  if (!password) return null;
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
 
 /**
  * Simple email validation
@@ -33,7 +42,9 @@ async function createEmployee(payload) {
   }
 
   const now = new Date().toISOString();
-  const employeeId = uuidv4();
+  const employeeId = payload.employeeId || uuidv4();
+  const hashedPassword = hashPassword(payload.password);
+
   const employee = new Employee({
     employeeId,
     firstName: payload.firstName,
@@ -42,6 +53,7 @@ async function createEmployee(payload) {
     department: payload.department,
     designation: payload.designation,
     salary: Number(payload.salary),
+    hashedPassword,
     createdAt: now,
     updatedAt: now,
   });
@@ -72,6 +84,10 @@ async function updateEmployee(employeeId, payload) {
   }
 
   const updates = { ...payload };
+  delete updates.password; // Do not store raw password
+  if (payload.password) {
+    updates.hashedPassword = hashPassword(payload.password);
+  }
   updates.updatedAt = new Date().toISOString();
   if (updates.salary) updates.salary = Number(updates.salary);
 

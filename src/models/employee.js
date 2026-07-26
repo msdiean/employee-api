@@ -10,6 +10,7 @@ class Employee {
     department,
     designation,
     salary,
+    hashedPassword,
     createdAt,
     updatedAt,
   }) {
@@ -20,12 +21,13 @@ class Employee {
     this.department = department;
     this.designation = designation;
     this.salary = salary;
+    this.hashedPassword = hashedPassword || null;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
 
   toItem() {
-    return {
+    const item = {
       employeeId: this.employeeId,
       firstName: this.firstName,
       lastName: this.lastName,
@@ -36,6 +38,10 @@ class Employee {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };
+    if (this.hashedPassword) {
+      item.hashedPassword = this.hashedPassword;
+    }
+    return item;
   }
 }
 

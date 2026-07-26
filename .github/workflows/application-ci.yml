@@ -351,3 +351,74 @@ jobs:
         run: |
           set -euo pipefail
           npm audit --omit=dev --audit-level=high
+
+  package:
+    name: Stage 9 - Package Production Artifact
+    needs: npm-audit
+    runs-on: [self-hosted, Linux, X64, web]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install Production Dependencies Only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --omit=dev
+
+      - name: Create Production Zip Artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          zip -r employee-api.zip src node_modules package.json index.js
+
+      - name: Upload Lambda Zip Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: employee-api-package
+          path: employee-api.zip
+          retention-days: 7
+
+  deploy:
+    name: Stage 10 - Deploy to AWS Lambda
+    needs: package
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, Linux, X64, web]
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download Lambda Zip Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: employee-api-package
+          path: .
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::755395261332:role/github-actions-role
+          aws-region: ap-south-1
+          role-session-name: GitHubActionsLambdaDeploy
+
+      - name: Update AWS Lambda Function Code
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Deploying production package to AWS Lambda..."
+          aws lambda update-function-code \
+            --function-name employee-api-dev \
+            --zip-file fileb://employee-api.zip \
+            --publish
+          echo "Deployment successful!"
+
