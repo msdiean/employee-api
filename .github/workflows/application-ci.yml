@@ -319,3 +319,35 @@ jobs:
         run: |
           set -euo pipefail
           echo "SonarQube Quality Gate PASSED."
+
+  npm-audit:
+    name: Stage 8 - Dependency Vulnerability Scan (npm audit)
+    needs: sonarqube-quality-gate
+    runs-on: [self-hosted, Linux, X64, web]
+
+    steps:
+      # Checkout repository because each job runs in an isolated workspace.
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Setup Node.js runtime and npm cache for reproducible audit execution.
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # Install locked dependencies before scanning.
+      - name: Install Dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+
+      # Fail pipeline on high/critical production dependency vulnerabilities.
+      - name: Run npm audit (prod deps, high+)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm audit --omit=dev --audit-level=high
