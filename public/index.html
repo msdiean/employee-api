@@ -370,7 +370,7 @@
 
     <div class="endpoint-card">
       <label><i class="fa-solid fa-link"></i> API Gateway URL:</label>
-      <input type="text" id="apiUrl" value="https://<api-id>.execute-api.ap-south-1.amazonaws.com/dev" placeholder="Paste your API Gateway invoke URL here">
+      <input type="text" id="apiUrl" value="https://0zz7jki9k8.execute-api.ap-south-1.amazonaws.com/dev" placeholder="Paste your API Gateway invoke URL here">
       <button class="btn btn-secondary" onclick="fetchEmployees()" style="width: auto;"><i class="fa-solid fa-rotate"></i> Refresh</button>
     </div>
 
@@ -586,6 +586,9 @@
         logResponse('DELETE ERROR', { error: err.message });
       }
     }
+
+    // Auto-load employees when page loads
+    window.addEventListener('DOMContentLoaded', fetchEmployees);
   </script>
 </body>
 </html>
