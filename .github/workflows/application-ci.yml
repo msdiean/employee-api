@@ -430,7 +430,10 @@ jobs:
         run: |
           set -euo pipefail
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          BUCKET_NAME="employee-api-frontend-dev-${ACCOUNT_ID}"
+          BUCKET_NAME="employee-api-central-audit-dev-${ACCOUNT_ID}"
+          if ! aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+            BUCKET_NAME="employee-api-frontend-dev-${ACCOUNT_ID}"
+          fi
           echo "Syncing public/ Web UI to S3 bucket s3://${BUCKET_NAME}..."
           aws s3 sync public/ s3://${BUCKET_NAME}/ --delete
           echo "Frontend successfully deployed to S3 Website!"
