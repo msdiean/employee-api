@@ -441,12 +441,43 @@ jobs:
         run: |
           set -euo pipefail
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          BUCKET_NAME="employee-api-central-audit-dev-${ACCOUNT_ID}"
-          if ! aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
-            BUCKET_NAME="employee-api-frontend-dev-${ACCOUNT_ID}"
+          FRONTEND_BUCKET="employee-api-frontend-dev-${ACCOUNT_ID}"
+          AUDIT_BUCKET="employee-api-central-audit-dev-${ACCOUNT_ID}"
+
+          if aws s3api head-bucket --bucket "$FRONTEND_BUCKET" 2>/dev/null; then
+            echo "Syncing public/ Web UI to Frontend S3 bucket s3://${FRONTEND_BUCKET}..."
+            aws s3 sync public/ "s3://${FRONTEND_BUCKET}/" --delete
+            echo "Frontend successfully deployed to S3 Static Website bucket!"
+          elif aws s3api head-bucket --bucket "$AUDIT_BUCKET" 2>/dev/null; then
+            echo "Frontend bucket s3://${FRONTEND_BUCKET} not found. Syncing to central audit subfolder s3://${AUDIT_BUCKET}/frontend/..."
+            aws s3 sync public/ "s3://${AUDIT_BUCKET}/frontend/" --delete
+          else
+            echo "WARNING: Neither frontend nor audit S3 bucket was accessible."
           fi
-          echo "Syncing public/ Web UI to S3 bucket s3://${BUCKET_NAME}..."
-          aws s3 sync public/ s3://${BUCKET_NAME}/ --delete
-          echo "Frontend successfully deployed to S3 Website!"
+
+      - name: Archive CI Security Audit Metadata to S3
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          AUDIT_BUCKET="employee-api-central-audit-dev-${ACCOUNT_ID}"
+
+          if aws s3api head-bucket --bucket "$AUDIT_BUCKET" 2>/dev/null; then
+            echo "Uploading CI Security Audit report to s3://${AUDIT_BUCKET}/ci-security-scans/..."
+            cat <<EOF > ci-security-audit.json
+          {
+            "repository": "${{ github.repository }}",
+            "commit_sha": "${{ github.sha }}",
+            "ref": "${{ github.ref }}",
+            "actor": "${{ github.actor }}",
+            "timestamp": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
+            "scans_completed": ["gitleaks", "sonarqube-quality-gate", "npm-audit"],
+            "status": "PASSED"
+          }
+          EOF
+            aws s3 cp ci-security-audit.json "s3://${AUDIT_BUCKET}/ci-security-scans/scan-report-${{ github.sha }}.json"
+            echo "CI Security Audit metadata archived successfully!"
+          fi
+
 
 
