@@ -286,7 +286,7 @@ jobs:
       # Wait for SonarQube background processing and evaluate the official Quality Gate result.
       - name: Evaluate SonarQube Quality Gate
         id: quality-gate
-        uses: SonarSource/sonarqube-quality-gate-action@master
+        uses: SonarSource/sonarqube-quality-gate-action@v1
         timeout-minutes: 10
         with:
           pollingTimeoutSec: 600
