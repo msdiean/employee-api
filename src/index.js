@@ -30,9 +30,12 @@ exports.handler = async (event) => {
     return handler.createEmployee(event);
   }
 
-  // GET /employees - Simulated Error for Auto-Rollback Test
+  // GET /employees - Simulated Crash only when ?crash=true parameter is passed
   if (method === 'GET' && path === '/employees') {
-    throw new Error('Simulated Production Crash for Auto-Rollback Test!');
+    if (event.queryStringParameters && event.queryStringParameters.crash === 'true') {
+      throw new Error('Simulated Production Crash for Auto-Rollback Test!');
+    }
+    return handler.getEmployees(event);
   }
 
   // Routes with employeeId parameter: /employees/{employeeId}
