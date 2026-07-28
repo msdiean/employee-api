@@ -414,16 +414,24 @@ jobs:
           aws-region: ap-south-1
           role-session-name: GitHubActionsLambdaDeploy
 
-      - name: Update AWS Lambda Function Code
+      - name: Update AWS Lambda Function Code & Promote Live Alias
         shell: bash
         run: |
           set -euo pipefail
           echo "Deploying production package to AWS Lambda..."
-          aws lambda update-function-code \
+          NEW_VERSION=$(aws lambda update-function-code \
             --function-name employee-api-dev \
             --zip-file fileb://employee-api.zip \
-            --publish
-          echo "Lambda deployment successful!"
+            --publish \
+            --query 'Version' \
+            --output text)
+          echo "Published Version: $NEW_VERSION"
+          echo "Promoting 'live' alias to Version $NEW_VERSION..."
+          aws lambda update-alias \
+            --function-name employee-api-dev \
+            --name live \
+            --function-version "$NEW_VERSION"
+          echo "Lambda deployment and live alias promotion successful!"
 
       - name: Archive Application Package Artifact to S3
         shell: bash
