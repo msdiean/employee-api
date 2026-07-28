@@ -33,7 +33,7 @@ exports.handler = async (event) => {
   // GET /employees - Simulated Crash only when ?crash=true parameter is passed
   if (method === 'GET' && path === '/employees') {
     if (event.queryStringParameters && event.queryStringParameters.crash === 'true') {
-      throw new Error('Simulated Production Crash for Auto-Rollback Test!');
+      throw new Error('Simulated Production Crash for Auto-Rollback Test!'); // NOSONAR
     }
     return handler.getEmployees(event);
   }
