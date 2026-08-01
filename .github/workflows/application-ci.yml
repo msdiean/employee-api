@@ -10,105 +10,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  checkout:
-    name: Stage 1 - Checkout Source Code
-    runs-on: [self-hosted, Linux, X64, web]
-
-    steps:
-      # Checkout the repository
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      # Verify runner and repository information
-      - name: Verify Runner
-        run: |
-          echo "========== Runner Details =========="
-          echo "Runner Name      : $RUNNER_NAME"
-          echo "Runner OS        : $RUNNER_OS"
-          echo "Runner Arch      : $RUNNER_ARCH"
-          echo "Hostname         : $(hostname)"
-
-          echo ""
-          echo "========== GitHub Details =========="
-          echo "Repository       : ${{ github.repository }}"
-          echo "Branch           : ${{ github.ref_name }}"
-          echo "Commit SHA       : ${{ github.sha }}"
-          echo "Workspace        : $GITHUB_WORKSPACE"
-
-      # Verify repository contents
-      - name: Verify Source Code
-        run: |
-          echo "========== Repository Contents =========="
-          pwd
-          ls -lah
-
-          echo ""
-          echo "========== Git Status =========="
-          git status
-
-          echo ""
-          echo "========== Latest Commit =========="
-          git log -1 --oneline
-
-  setup:
-    name: Stage 2 - Setup Build Environment
-    needs: checkout
-    runs-on: [self-hosted, Linux, X64, web]
-
-    steps:
-      # Check out the repository because each job runs in an isolated environment.
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      # Fail fast if the required Node.js manifest files are missing.
-      - name: Verify Required Manifest Files
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          echo "Checking for required project files..."
-          test -f package.json || { echo "ERROR: package.json not found."; exit 1; }
-          test -f package-lock.json || { echo "ERROR: package-lock.json not found."; exit 1; }
-
-          echo "Required files are present:"
-          ls -l package.json package-lock.json
-
-      # Set up Node.js and enable npm cache for later pipeline stages.
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      # Verify the required toolchain and environment on the self-hosted runner.
-      - name: Verify Build Environment
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          echo "========== Runtime Versions =========="
-          echo "Node.js Version   : $(node --version)"
-          echo "npm Version       : $(npm --version)"
-          echo "Java Version      :"
-          java -version
-          echo ""
-          echo "AWS CLI Version   : $(aws --version)"
-          echo ""
-          echo "========== Environment =========="
-          echo "PATH=$PATH"
-
   build:
-    name: Stage 3 - Install Dependencies and Build
-    needs: setup
-    runs-on: [self-hosted, Linux, X64, web]
+    name: Stage 1 - Install Dependencies & Build
+    runs-on: [self-hosted, web]
 
     steps:
-      # Each job runs in an isolated runner workspace, so checkout is required.
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Restore the Node.js toolchain for this job and reuse npm cache.
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
@@ -116,21 +25,12 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      # Use deterministic dependency installation for CI.
       - name: Install Dependencies
         shell: bash
         run: |
           set -euo pipefail
           npm ci
 
-      # Build script is optional in some repos; fail with a clear message if missing.
-      - name: Verify Build Script Exists
-        shell: bash
-        run: |
-          set -euo pipefail
-          node -e "const p=require('./package.json'); if(!p.scripts || !p.scripts.build){console.error('ERROR: Missing scripts.build in package.json'); process.exit(1)}"
-
-      # Compile or package the application.
       - name: Build Application
         shell: bash
         run: |
@@ -138,16 +38,14 @@ jobs:
           npm run build
 
   unit-test:
-    name: Stage 4 - Unit Tests
+    name: Stage 2 - Unit Tests
     needs: build
-    runs-on: [self-hosted, Linux, X64, web]
+    runs-on: [self-hosted, web]
 
     steps:
-      # Checkout source for test execution in this isolated job.
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Recreate Node.js environment and cache metadata.
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
@@ -155,14 +53,12 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      # Install exact dependency tree before tests.
       - name: Install Dependencies
         shell: bash
         run: |
           set -euo pipefail
           npm ci
 
-      # Run unit test suite defined in package.json.
       - name: Run Unit Tests
         shell: bash
         run: |
@@ -170,38 +66,34 @@ jobs:
           npm test
 
   gitleaks:
-    name: Stage 5 - Secret Scan (Gitleaks)
+    name: Stage 3 - Secret Scan (Gitleaks)
     needs: unit-test
-    runs-on: [self-hosted, Linux, X64, web]
+    runs-on: [self-hosted, web]
     permissions:
       contents: read
 
     steps:
-      # Full history checkout improves secret detection across commits.
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Run Gitleaks and fail the job if secrets are detected.
       - name: Run Gitleaks Scan
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   sonarqube:
-    name: Stage 6 - SonarQube Analysis
+    name: Stage 4 - SonarQube Analysis
     needs: gitleaks
-    runs-on: [self-hosted, Linux, X64, web]
+    runs-on: [self-hosted, web]
 
     steps:
-      # Checkout full repository history so SonarQube can compute SCM metadata accurately.
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Configure the required Node.js runtime and enable npm cache for faster installs.
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
@@ -209,35 +101,30 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      # Install dependencies exactly as locked to keep CI builds reproducible.
       - name: Install Dependencies
         shell: bash
         run: |
           set -euo pipefail
           npm ci
 
-      # Generate coverage artifacts, including coverage/lcov.info required by SonarQube.
       - name: Run Unit Tests with Coverage
         shell: bash
         run: |
           set -euo pipefail
           npm run test:coverage
 
-      # Install Sonar Scanner CLI for this job so the scan does not depend on runner preinstallation.
       - name: Install Sonar Scanner CLI
         shell: bash
         run: |
           set -euo pipefail
           npm install --no-save sonar-scanner
 
-      # Verify the scanner CLI is available before uploading analysis.
       - name: Verify Sonar Scanner Availability
         shell: bash
         run: |
           set -euo pipefail
           npx sonar-scanner --version
 
-      # Upload analysis to SonarQube using host URL from Variables and token from Secrets.
       - name: Run SonarQube Scan
         shell: bash
         env:
@@ -260,7 +147,6 @@ jobs:
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.token="$SONAR_TOKEN"
 
-      # Persist scanner metadata so the next job can evaluate the Quality Gate.
       - name: Upload Sonar Scan Metadata
         uses: actions/upload-artifact@v4
         with:
@@ -269,21 +155,19 @@ jobs:
           if-no-files-found: error
 
   sonarqube-quality-gate:
-    name: Stage 7 - SonarQube Quality Gate
+    name: Stage 5 - SonarQube Quality Gate
     needs: sonarqube
-    runs-on: [self-hosted, Linux, X64, web]
+    runs-on: [self-hosted, web]
     permissions:
       contents: read
 
     steps:
-      # Download scan metadata generated in the previous SonarQube analysis job.
       - name: Download Sonar Scan Metadata
         uses: actions/download-artifact@v4
         with:
           name: sonar-scan-metadata
           path: .scannerwork
 
-      # Wait for SonarQube background processing and evaluate the official Quality Gate result.
       - name: Evaluate SonarQube Quality Gate
         id: quality-gate
         uses: SonarSource/sonarqube-quality-gate-action@master
@@ -295,42 +179,27 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-      # Always print the final gate status for visibility in workflow logs.
-      - name: Display Quality Gate Status
-        if: always()
+      - name: Display & Enforce Quality Gate Status
         shell: bash
         run: |
           set -euo pipefail
-          echo "SonarQube Quality Gate Status: ${{ steps.quality-gate.outputs.quality-gate-status }}"
-
-      # Fail immediately with an explicit error when the Quality Gate is not passed.
-      - name: Fail on Quality Gate Failure
-        if: steps.quality-gate.outputs.quality-gate-status != 'PASSED'
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "::error::SonarQube Quality Gate FAILED. Failing pipeline."
-          exit 1
-
-      # Confirm successful gate evaluation when status is PASSED.
-      - name: Confirm Quality Gate Passed
-        if: steps.quality-gate.outputs.quality-gate-status == 'PASSED'
-        shell: bash
-        run: |
-          set -euo pipefail
+          STATUS="${{ steps.quality-gate.outputs.quality-gate-status }}"
+          echo "SonarQube Quality Gate Status: $STATUS"
+          if [ "$STATUS" != "PASSED" ]; then
+            echo "::error::SonarQube Quality Gate FAILED. Failing pipeline."
+            exit 1
+          fi
           echo "SonarQube Quality Gate PASSED."
 
   npm-audit:
-    name: Stage 8 - Dependency Vulnerability Scan (npm audit)
+    name: Stage 6 - Dependency Vulnerability Scan (npm audit)
     needs: sonarqube-quality-gate
-    runs-on: [self-hosted, Linux, X64, web]
+    runs-on: [self-hosted, web]
 
     steps:
-      # Checkout repository because each job runs in an isolated workspace.
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Setup Node.js runtime and npm cache for reproducible audit execution.
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
@@ -338,14 +207,12 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      # Install locked dependencies before scanning.
       - name: Install Dependencies
         shell: bash
         run: |
           set -euo pipefail
           npm ci
 
-      # Fail pipeline on high/critical production dependency vulnerabilities.
       - name: Run npm audit (prod deps, high+)
         shell: bash
         run: |
@@ -353,9 +220,9 @@ jobs:
           npm audit --omit=dev --audit-level=high
 
   package:
-    name: Stage 9 - Package Production Artifact
+    name: Stage 7 - Package Production Artifact
     needs: npm-audit
-    runs-on: [self-hosted, Linux, X64, web]
+    runs-on: [self-hosted, web]
 
     steps:
       - name: Checkout Repository
@@ -388,10 +255,10 @@ jobs:
           retention-days: 7
 
   deploy:
-    name: Stage 10 - Deploy to AWS Lambda
+    name: Stage 8 - Deploy to AWS Lambda
     needs: package
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-    runs-on: [self-hosted, Linux, X64, web]
+    runs-on: [self-hosted, web]
 
     permissions:
       id-token: write
@@ -486,6 +353,3 @@ jobs:
             aws s3 cp ci-security-audit.json "s3://${AUDIT_BUCKET}/ci-security-scans/scan-report-${{ github.sha }}.json"
             echo "CI Security Audit metadata archived successfully!"
           fi
-
-
-
